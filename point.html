@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LeafletJS GeoJSON Point</title>
+    <link href="https://unsorry.net/assets-date/images/favicon.png" rel="shortcut icon" type="image/png" />
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.1/dist/leaflet.css" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <link rel="stylesheet" href="libs/leaflet-routing-machine/leaflet-routing-machine.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"
+      integrity="sha512-mQ77VzAakzdpWdgfL/lM1ksNy89uFgibRQANsNneSTMD/bj0Y/8+94XMwYhnbzx8eki2hrbPpDm0vD0CiT2lcg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"
+      integrity="sha512-6ZCLMiYwTeli2rVh3XAPxy3YoR5fVxGdH/pz+KMCzRY2M65Emgkw00Yqmhh8qLGeYQ3LbVZGdmOX9KUjSKr0TA=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="stylesheet" href="libs/leaflet/leaflet-search.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"
+      integrity="sha512-1ycn6IcaQQ40/MKBW2W4Rhis/DbILU74C1vSrLJxCq57o941Ym01SwNsOMqvEBFlcgUa6xLiPY/NS5R+E6ztJQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="stylesheet" href="dist/leaflet.awesome-markers.css" />
+
+    <style>
+      html,
+      body,
+      #map {
+        height: 100%;
+        width: 100%;
+        margin: 0px;
+      }
+    </style>
+  </head>
+  <body>
+    <script src="https://code.jquery.com/jquery-3.6.1.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.1/dist/leaflet.js"></script>
+    <script src="libs/leaflet-routing-machine/leaflet-routing-machine.js"></script>
+    <script src="libs/leaflet-routing-machine/Control.Geocoder.js"></script>
+    <script src="libs/leaflet-routing-machine/config.js"></script>
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster-src.js"
+      integrity="sha512-+v1wwh3/ssdlBHT9KaotlPNisom2W6Ryj4g2/HfkKu6OLp62Lbf6VgRdEm2+OYOQVnR0WoxVgWZq5JmPBAj+HQ=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    ></script>
+    <script src="libs/leaflet/leaflet-search.js"></script>
+    <script src="libs/leaflet/leaflet-measure.js"></script>
+    <script src="dist/leaflet.awesome-markers.js"></script>
+
+    <div id="map"></div>
+    <script>
+      var current_position, current_accuracy, myLoc;
+      /* Initial Map */
+      var map = L.map('map').setView([-7.789020070742346, 110.37389457683186], 13);
+
+      /* Tile Basemap */
+      var basemap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> | <a href="https://www.unsorry.net" target="_blank">unsorry@2022</a>',
+      });
+      basemap.addTo(map);
+
+      // Creates a red marker with the coffee icon
+      var redMarker = L.AwesomeMarkers.icon({
+        icon: 'wifi',
+        markerColor: 'orange',
+        stylePrefix: 'fas',
+        prefix: 'fa',
+      });
+
+      /* GeoJSON Point */
+
+      var markers = L.markerClusterGroup();
+      var point = L.geoJson(null, {
+        onEachFeature: function (feature, layer) {
+          var popupContent =
+            'Lokasi: ' +
+            feature.properties.title +
+            '<br>' +
+            'Kecamatan: ' +
+            feature.properties.kecamatan +
+            '<br>' +
+            '<button type="button" id="prevBtn" onclick="addWayP(' +
+            feature.geometry.coordinates[1] +
+            ',' +
+            feature.geometry.coordinates[0] +
+            ')"> Jadikan Tujuan </button>';
+          layer.bindPopup(popupContent);
+          layer.on({
+            mouseover: function (e) {
+              point.bindTooltip(feature.properties.title);
+            },
+          });
+        },
+        pointToLayer: function (feature, latlng) {
+          return L.marker(latlng, { icon: redMarker });
+        },
+      });
+      $.getJSON('data/hotspot.geojson', function (data) {
+        point.addData(data);
+        markers.addLayer(point);
+        map.addLayer(markers);
+      });
+
+      function onLocationFound(e) {
+        if (current_position) {
+          map.removeLayer(current_position);
+          map.removeLayer(current_accuracy);
+        }
+
+        var radius = e.accuracy / 2;
+
+        current_position = L.marker(e.latlng)
+          .addTo(map)
+          .bindPopup('Anda berada sekitar ' + radius + ' meter dari titik ini.')
+          .openPopup();
+
+        current_accuracy = L.circle(e.latlng, radius).addTo(map);
+
+        myLoc = e.latlng;
+        routeControl.spliceWaypoints(0, 1, myLoc);
+        console.log(myLoc);
+        //console.log(routeControl.getWaypoints().length);
+      }
+
+      function onLocationError(e) {
+        alert(e.message);
+      }
+
+      map.on('locationfound', onLocationFound);
+      map.on('locationerror', onLocationError);
+
+      function highlightFeature(e) {
+        var layer = e.target;
+        layer.setStyle({
+          weight: 5,
+          color: 'black',
+          fillColor: 'white',
+          fillOpacity: 0.2,
+        });
+        if (!L.Browser.ie && !L.Browser.opera) {
+          layer.bringToFront();
+        }
+      }
+      map.locate({ setView: false, maxZoom: 13 });
+
+      function addWayP(y, x) {
+        var waypoint = new L.Routing.Waypoint();
+        waypoint.latLng = {};
+        console.log(y);
+        console.log(x);
+
+        waypoint.latLng.lat = y; //e.target.feature.;
+        waypoint.latLng.lng = x; //item.Lon;
+
+        //console.log(routeControl.getWaypoints().length);
+
+        //routeControl.spliceWaypoints(routeControl.getWaypoints().length + 1, 0, waypoint.latLng);
+
+        var routeArray = new Array();
+        routeArray = routeControl.getWaypoints();
+        console.log(routeArray[0].latLng);
+        console.log(routeArray[1].latLng);
+
+        if (routeControl.getWaypoints().length == 2) {
+          if (routeArray[0].latLng == null) {
+            routeControl.spliceWaypoints(0, 1, waypoint.latLng);
+          } else if (routeArray[1].latLng == null) {
+            routeControl.spliceWaypoints(1, 1, waypoint.latLng);
+          } else {
+            routeControl.spliceWaypoints(routeControl.getWaypoints().length + 1, 0, waypoint.latLng);
+          }
+        } else {
+          routeControl.spliceWaypoints(routeControl.getWaypoints().length + 1, 0, waypoint.latLng);
+        }
+        map.closePopup();
+        //console.log(routeControl.getWaypoints().length);
+      }
+
+      var routeControl = L.Routing.control({
+        waypoints: [null],
+        geocoder: L.Control.Geocoder.nominatim(),
+        addWaypoints: true,
+        show: true,
+        draggableWaypoints: true,
+        routeWhileDragging: true,
+        reverseWaypoints: true,
+        autoRoute: true,
+        showAlternatives: true,
+        altLineOptions: {
+          styles: [
+            { color: 'black', opacity: 0.15, weight: 9 },
+            { color: 'white', opacity: 0.8, weight: 6 },
+            { color: 'blue', opacity: 0.5, weight: 2 },
+          ],
+        },
+        waypointNameFallback: function (latLng) {
+          function zeroPad(n) {
+            n = Math.round(n);
+            return n < 10 ? '0' + n : n;
+          }
+          function sexagesimal(p, pos, neg) {
+            var n = Math.abs(p),
+              degs = Math.floor(n),
+              mins = (n - degs) * 60,
+              secs = (mins - Math.floor(mins)) * 60,
+              frac = Math.round((secs - Math.floor(secs)) * 100);
+            return (n >= 0 ? pos : neg) + degs + '°' + zeroPad(mins) + "'" + zeroPad(secs) + '.' + zeroPad(frac) + '"';
+          }
+          return sexagesimal(latLng.lat, 'N', 'S') + ' ' + sexagesimal(latLng.lng, 'E', 'W');
+        },
+        show: true,
+      })
+        .on('routingerror', function (e) {
+          try {
+            map.getCenter();
+          } catch (e) {
+            map.fitBounds(
+              L.latLngBounds(
+                routeControl.getWaypoints().map(function (wp) {
+                  return wp.latLng;
+                })
+              )
+            );
+          }
+          //handleError(e);
+          //console.log(e);
+        })
+        .addTo(map);
+
+      map.addControl(
+        new L.Control.Search({
+          layer: markers,
+          initial: false,
+          hideMarkerOnCollapse: true,
+          propertyName: 'kelurahan',
+        })
+      );
+    </script>
+  </body>
+</html>
